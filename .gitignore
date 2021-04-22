@@ -6,6 +6,9 @@ mcuconf.*
 halconf.*
 chconf.*
 libssp*
+*.launch
+*project
+*.xml
 
 # Object files
 *.o
