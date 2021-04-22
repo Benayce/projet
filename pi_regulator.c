@@ -9,6 +9,8 @@
 #include <motors.h>
 #include <pi_regulator.h>
 
+#define ERROR_THRESHOLD 1
+
 //simple PI regulator implementation
 int16_t pi_regulator(float distance, float goal){
 
