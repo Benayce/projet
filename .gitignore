@@ -1,6 +1,12 @@
 # Prerequisites
 *.d
 
+#fichiers de base
+mcuconf.*
+halconf.*
+chconf.*
+libssp*
+
 # Object files
 *.o
 *.ko
