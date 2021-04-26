@@ -4,12 +4,18 @@
 #include <usbcfg.h>
 #include <chprintf.h>
 
-
 #include <main.h>
 #include <motors.h>
+#include <sensors\VL53L0X\VL53L0X.h>
 #include <pi_regulator.h>
+#include <son.h>
 
-#define ERROR_THRESHOLD 1
+#define GOAL_DISTANCE 100	//10cm
+#define TRUE 1
+#define FALSE 0
+#define WHEEL_DISTANCE      53.5f    //mm
+#define PERIMETER_EPUCK     (M_PI * WHEEL_DISTANCE)
+
 
 //simple PI regulator implementation
 int16_t pi_regulator(float distance, float goal){
@@ -52,24 +58,31 @@ static THD_FUNCTION(PiRegulator, arg) {
 
     int16_t speed = 0;
     int16_t speed_correction = 0;
+    uint8_t direction = FALSE;
 
     while(1){
         time = chVTGetSystemTime();
         
         //computes the speed to give to the motors
-        //distance_cm is modified by the image processing thread
-        speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
-        //computes a correction factor to let the robot rotate to be in front of the line
-        speed_correction = (get_line_position() - (IMAGE_BUFFER_SIZE/2));
+        //only active once direction has been adapted
+        if(direction)
+        {
+			speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
+		}
 
-        //if the line is nearly in front of the camera, don't rotate
-        if(abs(speed_correction) < ROTATION_THRESHOLD){
-        	speed_correction = 0;
-        }
+        //computes a correction factor to let the robot rotate to be in front of the source
+        //once at start to turn to sound source
+        if(!direction)
+        {
+	        speed_correction = 360/get_angle();
+	        left_motor_set_pos(-PERIMETER_EPUCK/speed_correction);
+	        right_motor_set_pos(PERIMETER_EPUCK/speed_correction);
+	        direction = TRUE;
+		}
 
         //applies the speed from the PI regulator and the correction for the rotation
-		right_motor_set_speed(speed - ROTATION_COEFF * speed_correction);
-		left_motor_set_speed(speed + ROTATION_COEFF * speed_correction);
+		right_motor_set_speed(speed);
+		left_motor_set_speed(speed);
 
         //100Hz
         chThdSleepUntilWindowed(time, time + MS2ST(10));
