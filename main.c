@@ -21,6 +21,13 @@ void SendUint8ToComputer(uint8_t* data, uint16_t size)
 	chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)data, size);
 }
 
+void SendUint16ToComputer(uint16_t* data)
+{
+	//chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)"START", 5);
+	//chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint16_t*)&size, sizeof(uint16_t));
+	chprintf((BaseSequentialStream *)&SD3, "data %d \n", *data);
+}
+
 static void serial_start(void)
 {
 	static SerialConfig ser_cfg = {
@@ -48,7 +55,7 @@ int main(void)
 	motors_init();
 	
 	//time of flight
-	THD_FUNCTION(VL53L0XThd, arg);
+	VL53L0X_start();
 
 	//stars the threads for the pi regulator and the processing of the image
 	pi_regulator_start();

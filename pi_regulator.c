@@ -56,33 +56,57 @@ static THD_FUNCTION(PiRegulator, arg) {
 
     systime_t time;
 
-    int16_t speed = 0;
-    int16_t speed_correction = 0;
-    uint8_t direction = FALSE;
+    int16_t speedr = 0;
+    int16_t speedl = 0;
+    float angle_correction = 0;
+    uint8_t direction_init = TRUE;
+    uint8_t direction_check = TRUE;
+    uint16_t data;
+    //int16_t speed = 0;
 
     while(1){
         time = chVTGetSystemTime();
         
+        //test time of flight
+        data = VL53L0X_get_dist_mm();
+        //chThdSleepMilliseconds(1000);
+        //SendUint16ToComputer(&data);
+
         //computes the speed to give to the motors
         //only active once direction has been adapted
-        if(direction)
+        if(direction_check)
         {
-			speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
+			speedr = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
+			speedl = speedr;
 		}
 
         //computes a correction factor to let the robot rotate to be in front of the source
         //once at start to turn to sound source
-        if(!direction)
+        if(!direction_init && !direction_check)
         {
-	        speed_correction = 360/get_angle();
-	        left_motor_set_pos(-PERIMETER_EPUCK/speed_correction);
-	        right_motor_set_pos(PERIMETER_EPUCK/speed_correction);
-	        direction = TRUE;
+	        angle_correction = PERIMETER_EPUCK/(360/get_angle());
+	        //left_motor_set_pos(-PERIMETER_EPUCK/angle_correction);
+	        //right_motor_set_pos(PERIMETER_EPUCK/angle_correction);
+	        right_motor_set_pos(0);
+	        left_motor_set_pos(0);
+
+	        direction_init = TRUE;
 		}
 
+        if(direction_init && !direction_check)
+        {
+        	speedr = pi_regulator(right_motor_get_pos(), angle_correction/2);
+        	speedl = -pi_regulator(left_motor_get_pos(), -angle_correction/2);
+        	if(speedr == 0 && speedl == 0)
+        	{
+        		direction_check = TRUE;
+        	}
+        }
+
+
         //applies the speed from the PI regulator and the correction for the rotation
-		right_motor_set_speed(speed);
-		left_motor_set_speed(speed);
+		right_motor_set_speed(speedr);
+		left_motor_set_speed(speedl);
 
         //100Hz
         chThdSleepUntilWindowed(time, time + MS2ST(10));
