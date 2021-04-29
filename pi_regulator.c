@@ -86,7 +86,7 @@ static THD_FUNCTION(PiRegulator, arg) {
         //once at start to turn to sound source
         if(!direction_init && !direction_check)
         {
-	        angle_correction = PERIMETER_EPUCK/(360/get_angle());//mult angle par 10 ?
+	        angle_correction = PERIMETER_EPUCK/(360/get_angle());
 	        SendFloatToComputer("a", &angle_correction);
 	        //left_motor_set_pos(-PERIMETER_EPUCK/angle_correction);
 	        //right_motor_set_pos(PERIMETER_EPUCK/angle_correction);
@@ -104,7 +104,7 @@ static THD_FUNCTION(PiRegulator, arg) {
         	SendInt16ToComputer("r", &speedr);
         	speedl = pi_regulator(left_motor_get_pos(), -angle_correction/2);
         	SendInt16ToComputer("l", &speedl);
-        	if(speedr == 0 && speedl == 0)	//threshold trop grand pour l'angle? je pense pas
+        	if(speedr == 0 && speedl == 0)
         	{
         		direction_check = TRUE;
         	}
