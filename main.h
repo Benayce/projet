@@ -19,8 +19,8 @@ extern "C" {
 #define PXTOCM					1570.0f //experimental value
 //#define GOAL_DISTANCE 			10.0f
 #define MAX_DISTANCE 			25.0f
-#define ERROR_THRESHOLD			0.1f	//[cm] because of the noise of the camera
-#define KP						80.0f
+#define ERROR_THRESHOLD			5.0f	//[mm] because of the noise of the camera
+#define KP						30.0f
 #define KI 						2.5f	//must not be zero
 #define MAX_SUM_ERROR 			(MOTOR_SPEED_LIMIT/KI)
 
@@ -30,7 +30,8 @@ extern messagebus_t bus;
 extern parameter_namespace_t parameter_root;
 
 void SendUint8ToComputer(uint8_t* data, uint16_t size);
-void SendUint16ToComputer(uint16_t* data);
+void SendInt16ToComputer(char* nom, int16_t* data);
+void SendFloatToComputer(char* nom, float* data);
 
 #ifdef __cplusplus
 }
