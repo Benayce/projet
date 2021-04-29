@@ -1,5 +1,3 @@
-/*Main du 22 avril 2021 branche essai son*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,17 +9,20 @@
 #include <usbcfg.h>
 #include <main.h>
 #include <motors.h>
+#include <camera/po8030.h>
 #include <chprintf.h>
+#include <sensors/VL53L0X/VL53L0X.h>
+#include <audio_processing.h>
+#include <arm_math.h>
+#include <audio/microphone.h>
 
-#include <pi_regulator.h>
-#include <sensors\VL53L0X\VL53L0X.h>
 
-void SendUint8ToComputer(uint8_t* data, uint16_t size) 
+
+void SendUint16ToComputer(uint16_t data1)
 {
-	chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)"START", 5);
-	chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)&size, sizeof(uint16_t));
-	chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)data, size);
+	chprintf((BaseSequentialStream *)&SD3, "distance : %d \n",data1);
 }
+
 
 static void serial_start(void)
 {
@@ -35,6 +36,8 @@ static void serial_start(void)
 	sdStart(&SD3, &ser_cfg); // UART3.
 }
 
+
+
 int main(void)
 {
 
@@ -46,20 +49,30 @@ int main(void)
     serial_start();
     //start the USB communication
     usb_start();
-	//inits the motors
-	motors_init();
-	
-	//time of flight
-	THD_FUNCTION(VL53L0XThd, arg);
+    //start sensor time to fligh
+	 //VL53L0X_start();
+	 //starts the microphones processing thread.
+    //it calls the callback given in parameter when samples are ready
+    mic_start(&processAudioData);
 
-	//stars the threads for the pi regulator and the processing of the image
-	pi_regulator_start();
 
     /* Infinite loop. */
     while (1) {
-    	//waits 1 second
-        chThdSleepMilliseconds(1000);
-    }
+
+    		//test du capteur de distance
+    		////SendUint16ToComputer(VL53L0X_get_dist_mm());
+    		//test FFT et microphone
+        wait_send_to_computer();
+        //chprintf((BaseSequentialStream *)&SD3, " Pos max L = %d  ",get_pos_max());
+        //chprintf((BaseSequentialStream *)&SD3, " Pos max R = %d  ",get_pos_max());
+        chprintf((BaseSequentialStream *)&SD3, " diff de phase = %f  \n ",get_audio_max_float(13));
+        chprintf((BaseSequentialStream *)&SD3, " diff de phase rad = %f  \n ",get_audio_max_float(14));
+        chprintf((BaseSequentialStream *)&SD3, " phi !!!  = %f  \n ",get_audio_max_float(16));
+        chprintf((BaseSequentialStream *)&SD3, " calcul !!!  = %f  \n ",get_audio_max_float(17));
+        chprintf((BaseSequentialStream *)&SD3, " ANGLE !!!  = %f  \n ",get_audio_max_float(15)*360/(2*M_PI)+90);
+
+         chThdSleepMilliseconds(5000);
+   }
 }
 
 #define STACK_CHK_GUARD 0xe2dee396
@@ -69,3 +82,6 @@ void __stack_chk_fail(void)
 {
     chSysHalt("Stack smashing detected");
 }
+
+
+

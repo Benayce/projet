@@ -41,4 +41,8 @@ float get_audio_max_float(BUFFER_NAME_t name);
 
 void add_two_buffer(float *buffersortie,float *buffer2,float *buffer3,uint16_t size);
 
+void phase_from_cmplx(void);
+
+int get_pos_max(void);
+
 #endif /* AUDIO_PROCESSING_H */
