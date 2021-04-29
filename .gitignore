@@ -2,13 +2,13 @@
 *.d
 
 #fichiers de base
-mcuconf.*
-halconf.*
-chconf.*
-libssp*
-*.launch
-*project
-*.xml
+#mcuconf.*
+#halconf.*
+#chconf.*
+#libssp*
+#*.launch
+#*project
+#*.xml
 
 # Object files
 *.o
