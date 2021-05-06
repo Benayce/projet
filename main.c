@@ -9,29 +9,11 @@
 #include <usbcfg.h>
 #include <main.h>
 #include <motors.h>
-#include <chprintf.h>
-
+#include <sensors/VL53L0X/VL53L0X.h>
 #include <pi_regulator.h>
-#include <sensors\VL53L0X\VL53L0X.h>
 
-void SendUint8ToComputer(uint8_t* data, uint16_t size) 
-{
-	chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)"START", 5);
-	chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)&size, sizeof(uint16_t));
-	chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)data, size);
-}
 
-void SendInt16ToComputer(char* nom, int16_t* data)
-{
-	//chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint8_t*)"START", 5);
-	//chSequentialStreamWrite((BaseSequentialStream *)&SD3, (uint16_t*)&size, sizeof(uint16_t));
-	chprintf((BaseSequentialStream *)&SD3, "%c %d \n", *nom, *data);
-}
 
-void SendFloatToComputer(char* nom, float* data)
-{
-	chprintf((BaseSequentialStream *)&SD3, "%c %f \n", *nom, *data);
-}
 
 static void serial_start(void)
 {
@@ -44,6 +26,8 @@ static void serial_start(void)
 
 	sdStart(&SD3, &ser_cfg); // UART3.
 }
+
+
 
 int main(void)
 {
@@ -58,7 +42,7 @@ int main(void)
     usb_start();
 	//inits the motors
 	motors_init();
-	
+
 	//time of flight
 	VL53L0X_start();
 
@@ -79,3 +63,6 @@ void __stack_chk_fail(void)
 {
     chSysHalt("Stack smashing detected");
 }
+
+
+
