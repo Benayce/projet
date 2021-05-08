@@ -1,3 +1,8 @@
+/*Pour cette partie nous avons réutilisé le code du TP4
+ * lequel nous avons modifié pour notre projet
+ *
+ */
+
 #include "ch.h"
 #include "hal.h"
 #include <math.h>
@@ -10,12 +15,6 @@
 #include <sensors\VL53L0X\VL53L0X.h>
 #include <pi_regulator.h>
 
-#define GOAL_DISTANCE 100	//10cm
-#define TRUE 1
-#define FALSE 0
-/*#define WHEEL_DISTANCE      53.5f    //mm
-#define R_ROUES 20 //[mm]
-#define PERIMETER_EPUCK     (M_PI * WHEEL_DISTANCE)*/
 
 
 
@@ -59,10 +58,7 @@ static THD_FUNCTION(PiRegulator, arg) {
 
     int16_t speed = 0;
     int speed_correction = 100;
-    int count = 0;
     float angle = 100;
-    float test_angle = 0;
-    float test = 1.234;
     uint8_t fini = FALSE;
     uint8_t check_angle = FALSE;
 
@@ -76,21 +72,9 @@ static THD_FUNCTION(PiRegulator, arg) {
         }
         angle = get_angle();
 
-
-       // if(anglewait_send_to_computer();
-        //angle = get_audio_max_float(15)*360/(2*M_PI)+90;
-
-        //test_angle = get_audio_max_float(15);
-
-
-
-
-        //chprintf((BaseSequentialStream *)&SD3, "angle deg correct: %f\n", angle);
-        //chThdSleep(1000);
-
         //computes the speed to give to the motors
         //only active once direction has been adapted
-        if(abs(angle) < 5 && !fini/* && check_angle*/)
+        if(abs(angle) < 5 && !fini)
         {
 			speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
 
@@ -101,11 +85,7 @@ static THD_FUNCTION(PiRegulator, arg) {
         	speed = 0;
         }
 
-        /*if(count<100){speed_correction = 45;}
-        if(count>=100 && count<200){speed_correction = 20;}
-        if(count >= 200){speed_correction = 0;}
-        count++;*/
-        if(abs(angle)>=5)
+        if(abs(angle)>=5 && !fini)
         {
         	speed_correction = angle;
         }
@@ -113,7 +93,6 @@ static THD_FUNCTION(PiRegulator, arg) {
         {
         	speed_correction = 0;
         }
-        //chprintf((BaseSequentialStream *)&SD3, "speed std: %d\n", speed);
 
 		right_motor_set_speed(speed + ROTATION_COEFF * speed_correction);
 		left_motor_set_speed(speed - ROTATION_COEFF * speed_correction);

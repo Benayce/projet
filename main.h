@@ -12,16 +12,14 @@ extern "C" {
 float get_angle(void);
 
 //constants for the differents parts of the project
-/*#define IMAGE_BUFFER_SIZE		640
-#define WIDTH_SLOPE				5
-#define MIN_LINE_WIDTH			40*/
 #define ROTATION_THRESHOLD		10
 #define ROTATION_COEFF			2
-//#define PXTOCM					1570.0f //experimental value
-//#define GOAL_DISTANCE 			10.0f
+#define GOAL_DISTANCE 			100	//10cm
+#define TRUE 					1
+#define FALSE 					0
 #define MAX_DISTANCE 			25.0f
-#define ERROR_THRESHOLD			5.0f	//[mm] because of the noise of the camera
-#define KP						5.0f
+#define ERROR_THRESHOLD			5.0f	//[mm]
+#define KP						10.0f
 #define KI 						0.1f	//must not be zero
 #define MAX_SUM_ERROR 			(MOTOR_SPEED_LIMIT/KI)
 

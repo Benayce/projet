@@ -9,7 +9,6 @@
 #include <usbcfg.h>
 #include <main.h>
 #include <motors.h>
-#include <camera/po8030.h>
 #include <chprintf.h>
 #include <sensors/VL53L0X/VL53L0X.h>
 #include <audio_processing.h>
@@ -17,16 +16,11 @@
 #include <audio/microphone.h>
 #include <pi_regulator.h>
 
-static float angle = 100;
+static float angle = 45;
 
 float get_angle(void)
 {
 	return angle;
-}
-
-void SendUint16ToComputer(uint16_t data1)
-{
-	chprintf((BaseSequentialStream *)&SD3, "distance : %d \n",data1);
 }
 
 
@@ -68,19 +62,11 @@ int main(void)
 
 
     /* Infinite loop. */
-    while (1) {
+    while (TRUE) {
 
-    		//test du capteur de distance
-    		////SendUint16ToComputer(VL53L0X_get_dist_mm());
-    		//test FFT et microphone
+
+    	//récupération de l'angle
         wait_send_to_computer();
-        //chprintf((BaseSequentialStream *)&SD3, " Pos max L = %d  ",get_pos_max());
-        //chprintf((BaseSequentialStream *)&SD3, " Pos max R = %d  ",get_pos_max());
-        /*chprintf((BaseSequentialStream *)&SD3, " diff de phase = %f  \n ",get_audio_max_float(13));
-        chprintf((BaseSequentialStream *)&SD3, " diff de phase rad = %f  \n ",get_audio_max_float(14));
-        chprintf((BaseSequentialStream *)&SD3, " phi !!!  = %f  \n ",get_audio_max_float(16));
-        chprintf((BaseSequentialStream *)&SD3, " calcul !!!  = %f  \n ",get_audio_max_float(17));*/
-        chprintf((BaseSequentialStream *)&SD3, " ANGLE !!!  = %f  \n ",get_audio_max_float(15)*360/(2*M_PI)+90);
 
         angle = get_audio_max_float(15)*360/(2*M_PI)+90;
         chThdSleepMilliseconds(1000);

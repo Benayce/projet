@@ -1,3 +1,7 @@
+/* C'est le code du TP4.
+ * Il n'a pas été modifié.
+ */
+
 #ifndef PI_REGULATOR_H
 #define PI_REGULATOR_H
 
