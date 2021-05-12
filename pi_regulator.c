@@ -61,6 +61,9 @@ static THD_FUNCTION(PiRegulator, arg) {
     float angle = 100;
     uint8_t fini = FALSE;
     uint8_t check_angle = FALSE;
+    uint8_t but = FALSE;
+    uint8_t rotation = TRUE;
+    uint8_t etapes = 0;
 
     while(1){
         time = chVTGetSystemTime();
@@ -74,26 +77,43 @@ static THD_FUNCTION(PiRegulator, arg) {
 
         //computes the speed to give to the motors
         //only active once direction has been adapted
-        if(abs(angle) < 5 && !fini)
+        if(/*abs(angle) < ANGLE_LIMITE && */!rotation && !but && !fini)
         {
 			speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
 
-			if(speed == 0){fini = TRUE;}
+			if(speed == 0){but = TRUE;}
 		}
         else
         {
         	speed = 0;
         }
 
-        if(abs(angle)>=5 && !fini)
+        if(abs(angle)>= ANGLE_LIMITE && !fini && rotation)
         {
         	speed_correction = angle;
         }
         else
         {
         	speed_correction = 0;
+        	rotation = FALSE;
         }
 
+
+        if(but == TRUE)
+        {
+        	etapes++;
+        	but = FALSE;
+        	rotation = TRUE;
+        	chThdSleepMilliseconds(5000);
+        }
+
+        if(etapes >= 3)
+        {
+        	fini = TRUE;
+        }
+
+        speed_correction = 0;
+        speed = 0;
 		right_motor_set_speed(speed + ROTATION_COEFF * speed_correction);
 		left_motor_set_speed(speed - ROTATION_COEFF * speed_correction);
 
