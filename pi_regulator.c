@@ -15,6 +15,15 @@
 #include <sensors\VL53L0X\VL53L0X.h>
 #include <pi_regulator.h>
 
+//////////////////////////////////////////
+
+#define ROTATION	0
+#define AVANCER		1
+#define BUT			2
+#define FIN			3
+#define ETAPES		3
+
+///////////////////////////////////////
 
 
 
@@ -65,6 +74,9 @@ static THD_FUNCTION(PiRegulator, arg) {
     uint8_t rotation = TRUE;
     uint8_t etapes = 0;
 
+
+    uint8_t state = 0;
+
     while(1){
         time = chVTGetSystemTime();
         
@@ -75,9 +87,61 @@ static THD_FUNCTION(PiRegulator, arg) {
         }
         angle = get_angle();
 
-        //computes the speed to give to the motors
+        ///////////////////////////////////////////
+
+        switch(state) {
+
+           case ROTATION  :
+        	   speed = 0;
+
+               if(abs(angle) >= ANGLE_LIMITE)
+               {
+               	speed_correction = angle;
+               }
+               else
+               {
+               	speed_correction = 0;
+               	state++;
+               }
+              break; /* optional */
+
+           case AVANCER  :
+        	   speed_correction = 0;
+        	   speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
+
+        	   if(speed == 0)
+        	   {
+        		   state++;
+        	   }
+
+              break; /* optional */
+           case BUT		:
+        	   speed = 0;
+        	   speed_correction = 0;
+        	   chThdSleepMilliseconds(5000);
+        	   if(etapes < ETAPES)
+        	   {
+        		   state = 0;
+        		   etapes++;
+        	   }
+        	   else
+        	   {
+        		   state++;
+        	   }
+
+        	   break;
+           case FIN		:
+        	   speed = 0;
+        	   speed_correction = 0;
+
+        	   break;
+        }
+
+        /////////////////////////////////////////////
+
+ /*       //computes the speed to give to the motors
         //only active once direction has been adapted
-        if(/*abs(angle) < ANGLE_LIMITE && */!rotation && !but && !fini)
+        if(abs(angle) < ANGLE_LIMITE && !rotation && !but && !fini)
         {
 			speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
 
@@ -111,7 +175,7 @@ static THD_FUNCTION(PiRegulator, arg) {
         {
         	fini = TRUE;
         }
-
+*/
         speed_correction = 0;
         speed = 0;
 		right_motor_set_speed(speed + ROTATION_COEFF * speed_correction);
