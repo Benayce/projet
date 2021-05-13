@@ -22,16 +22,17 @@ float get_angle(void);
 #define KP						10.0f
 #define KI 						0.1f	//must not be zero
 #define MAX_SUM_ERROR 			(MOTOR_SPEED_LIMIT/KI)
+#define ANGLE_LIMITE			1
 
 /** Robot wide IPC bus. */
 extern messagebus_t bus;
 
 extern parameter_namespace_t parameter_root;
-
+/*
 void SendUint8ToComputer(uint8_t* data, uint16_t size);
 void SendInt16ToComputer(char* nom, int16_t* data);
 void SendFloatToComputer(char* nom, float* data);
-
+*/
 #ifdef __cplusplus
 }
 #endif

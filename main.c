@@ -69,7 +69,8 @@ int main(void)
         wait_send_to_computer();
 
         angle = get_audio_max_float(15)*360/(2*M_PI)+90;
-        chThdSleepMilliseconds(1000);
+        chprintf((BaseSequentialStream*)&SD3,"Angle %f", angle);
+        chThdSleepMilliseconds(3000);
    }
 }
 

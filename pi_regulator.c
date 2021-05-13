@@ -14,6 +14,7 @@
 #include <motors.h>
 #include <sensors\VL53L0X\VL53L0X.h>
 #include <pi_regulator.h>
+#include <leds.h>
 
 //////////////////////////////////////////
 
@@ -22,6 +23,8 @@
 #define BUT			2
 #define FIN			3
 #define ETAPES		3
+#define ON			1
+#define OFF			0
 
 ///////////////////////////////////////
 
@@ -68,12 +71,9 @@ static THD_FUNCTION(PiRegulator, arg) {
     int16_t speed = 0;
     int speed_correction = 100;
     float angle = 100;
-    uint8_t fini = FALSE;
     uint8_t check_angle = FALSE;
-    uint8_t but = FALSE;
-    uint8_t rotation = TRUE;
     uint8_t etapes = 0;
-
+    uint8_t led = 0;
 
     uint8_t state = 0;
 
@@ -82,8 +82,11 @@ static THD_FUNCTION(PiRegulator, arg) {
         
         if(!check_angle)
         {
+        	set_body_led(1);
+        	chThdSleepMilliseconds(5000);
         	wait_send_to_computer();
         	check_angle = TRUE;
+        	set_body_led(0);
         }
         angle = get_angle();
 
@@ -103,11 +106,29 @@ static THD_FUNCTION(PiRegulator, arg) {
                	speed_correction = 0;
                	state++;
                }
+               if(speed_correction > 0)
+               {
+            	   set_led(LED7, ON);
+            	   set_led(LED3, OFF);
+               }
+               else if(speed_correction < 0)
+               {
+            	   set_led(LED3, ON);
+            	   set_led(LED7, OFF);
+               }
               break; /* optional */
 
            case AVANCER  :
         	   speed_correction = 0;
+        	   chprintf((BaseSequentialStream *)&SD3, "dist max %d\n", VL53L0X_get_dist_mm());
         	   speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
+
+        	   if(led != ON)
+        	   {
+        		   led = ON;
+        		   clear_leds();
+        		   set_led(LED1, ON);
+        	   }
 
         	   if(speed == 0)
         	   {
@@ -118,7 +139,15 @@ static THD_FUNCTION(PiRegulator, arg) {
            case BUT		:
         	   speed = 0;
         	   speed_correction = 0;
+        	   if(led == ON)
+        	   {
+        		   led = OFF;
+        		   set_led(LED1, OFF);
+        		   set_body_led(ON);
+        	   }
         	   chThdSleepMilliseconds(5000);
+    		   set_body_led(OFF);
+
         	   if(etapes < ETAPES)
         	   {
         		   state = 0;
@@ -139,45 +168,8 @@ static THD_FUNCTION(PiRegulator, arg) {
 
         /////////////////////////////////////////////
 
- /*       //computes the speed to give to the motors
-        //only active once direction has been adapted
-        if(abs(angle) < ANGLE_LIMITE && !rotation && !but && !fini)
-        {
-			speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
-
-			if(speed == 0){but = TRUE;}
-		}
-        else
-        {
-        	speed = 0;
-        }
-
-        if(abs(angle)>= ANGLE_LIMITE && !fini && rotation)
-        {
-        	speed_correction = angle;
-        }
-        else
-        {
-        	speed_correction = 0;
-        	rotation = FALSE;
-        }
-
-
-        if(but == TRUE)
-        {
-        	etapes++;
-        	but = FALSE;
-        	rotation = TRUE;
-        	chThdSleepMilliseconds(5000);
-        }
-
-        if(etapes >= 3)
-        {
-        	fini = TRUE;
-        }
-*/
-        speed_correction = 0;
-        speed = 0;
+//        speed_correction = 0;
+//        speed = 0;
 		right_motor_set_speed(speed + ROTATION_COEFF * speed_correction);
 		left_motor_set_speed(speed - ROTATION_COEFF * speed_correction);
 
