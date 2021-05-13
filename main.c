@@ -16,6 +16,10 @@
 #include <audio/microphone.h>
 #include <pi_regulator.h>
 
+#define DECALAGE90DEGRE 90
+#define RAD2DEG 			360/(2*M_PI)
+#define PAS2SON			810 //PROBLEMEANGLE*RAD2DEG+DECALGE90DEGRE
+
 static float angle = 45;
 
 float get_angle(void)
@@ -65,10 +69,10 @@ int main(void)
     while (TRUE) {
 
 
-    	//recuperation de l'angle calcule
+    	//r�cup�ration de l'angle
         wait_send_to_computer();
 
-        angle = get_audio_max_float(1)*360/(2*M_PI)+90;
+        angle = get_audio_float(ANGLE)*RAD2DEG+DECALAGE90DEGRE;
         chprintf((BaseSequentialStream*)&SD3,"Angle %f", angle);
         chThdSleepMilliseconds(3000);
    }

@@ -37,11 +37,12 @@ static int  pos_l_max;
 #define Fson3	3000
 #define L3		0.3
 
-#define Vson			340 			// vitesse du son en m/s
-#define d			0.03	 		// distance entre les 2 micros diviser par 2
-#define pas_freq 	15.6 		// 15,6 Hz de difference entre 2 indices des datas frequencielles
-
-
+#define Vson				340 			// vitesse du son en m/s
+#define d				0.03	 		// distance entre les 2 micros diviser par 2
+#define pas_freq 		15.6 		// 15,6 Hz de difference entre 2 indices des datas frequencielles
+#define BEFORE_SEND		4			//nbr de called back de la fonction avant d'update l'angle
+#define PROBLEMEANGLE	4*M_PI
+#define INITDEPH			10*M_PI
 
 // Fonction à pour but de retourner la frequence dominante d'un tab de frequence
 // si l'amplitude du signal à cette frequence est assez grande renvoie la position sinon renvoie 0
@@ -77,10 +78,11 @@ void doFFT_optimized(uint16_t size, float* complex_buffer){
 */
 
 void processAudioData(int16_t *data, uint16_t num_samples){
+//INITIALISATION des variable
 
 	 int pos_r_max;
-
-	 float dif_phase_rad= 10*M_PI;// initialiser à une valeur superieur > 2_PI
+	 // initialiser à une valeur superieur > 2_PI
+	 float dif_phase_rad= INITDEPH;
 	 float phi;
 
 	/*
@@ -94,7 +96,8 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 	static uint16_t nb_samples = 0;
 	static uint8_t mustSend = 0;
 
-	//loop to fill the buffers
+//ETAPE 0 loop to fill the buffers
+
 	for(uint16_t i = 0 ; i < num_samples ; i+=4){
 
 		//construct an array of complex numbers. Put 0 to the imaginary part
@@ -110,16 +113,13 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 		nb_samples++;
 
 		//stop when buffer is full
+
 		if(nb_samples >= (2 * FFT_SIZE)){
 			break;
 		}
 	}
 
 	if(nb_samples >= (2 * FFT_SIZE)){
-
-		/*	Angle finding Process
-		*
-		*/
 
 
 //ETAPE 1 CALCULER LES FFT
@@ -137,16 +137,17 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 // ETAPE 3 SI les 2 micros ont la meme frequence max (!=0) => calculer la difference de phase
 
 
-		if(mustSend > 8){
+		if(mustSend > BEFORE_SEND){
 			if((pos_r_max == pos_l_max) && (pos_r_max != 0)){
 
 				dif_phase_rad = atan(micLeft_cmplx_input[pos_l_max*2+1] / micLeft_cmplx_input[pos_l_max*2])
-						-atan(micRight_cmplx_input[pos_r_max*2+1] / micRight_cmplx_input[pos_r_max*2]);}
-
+						-atan(micRight_cmplx_input[pos_r_max*2+1] / micRight_cmplx_input[pos_r_max*2]);
+			}
+			else {Angle = PROBLEMEANGLE;}//Problème detecté On arrrete le robot
 
 // ETAPE 4 Fixer la variable L à partir de l'information de frequence
 
-			float L=L2; // Reflechir à la valeur d'initialisation Est ce que ça bloque si mauvaise ?
+			float L=L2; // Valeur d'initialisation à SON 2
 			int freq_position = (pos_l_max-2) *pas_freq ; // -2 pour que ça joue ?
 			int Fson= Fson2;
 			if ( (freq_position-pas_freq) < Fson1 && (freq_position+pas_freq) > Fson1 ){
@@ -190,12 +191,12 @@ void wait_send_to_computer(void){
 	chBSemWait(&sendToComputer_sem);
 }
 
-float get_audio_max_float(BUFFER_NAME_t name){ // CHANGER LES NOM
-if (name == 1){
+float get_audio_float(BUFFER_NAME_t name){
+if (name == ANGLE){
 			return Angle;
 }
-else if (name == 2){
-return (pos_l_max+1)*pas_freq;
+else if (name == FREQ){
+return (pos_l_max)*pas_freq;
 		}
 else{
 	return 0;
