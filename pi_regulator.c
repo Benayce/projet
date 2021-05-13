@@ -16,17 +16,6 @@
 #include <pi_regulator.h>
 #include <leds.h>
 
-//////////////////////////////////////////
-
-#define ROTATION	0
-#define AVANCER		1
-#define BUT			2
-#define FIN			3
-#define ETAPES		3
-#define ON			1
-#define OFF			0
-
-///////////////////////////////////////
 
 
 
@@ -73,103 +62,136 @@ static THD_FUNCTION(PiRegulator, arg) {
     float angle = 100;
     uint8_t check_angle = FALSE;
     uint8_t etapes = 0;
-    uint8_t led = 0;
+    uint8_t avant = OFF;
+    uint8_t droite = OFF;
+    uint8_t gauche = OFF;
+    uint8_t arriere = OFF;
+    int dist = 0;
 
     uint8_t state = 0;
 
     while(1){
         time = chVTGetSystemTime();
         
+        //Cela nous donne du temps pour preparer le robot
         if(!check_angle)
         {
         	set_body_led(1);
         	chThdSleepMilliseconds(5000);
-        	wait_send_to_computer();
+        	//wait_send_to_computer();
         	check_angle = TRUE;
         	set_body_led(0);
         }
         angle = get_angle();
 
-        ///////////////////////////////////////////
-
         switch(state) {
 
            case ROTATION  :
         	   speed = 0;
-
+        	   //Tant que l'angle calcule n'est pas satisfaisant, on continue de la corriger
                if(abs(angle) >= ANGLE_LIMITE)
                {
                	speed_correction = angle;
                }
+               //Si l'angle calcule est satisfaisant, on ne le corrige plus et on va au prochain etat
                else
                {
                	speed_correction = 0;
                	state++;
                }
-               if(speed_correction > 0)
+               //Si le robot fait un virage a gauche, la led gauche s'allume
+               if(speed_correction > 0 && !gauche)
                {
-            	   set_led(LED7, ON);
-            	   set_led(LED3, OFF);
+            	   gauche = ON;
+            	   droite = OFF;
+            	   set_led(LED7, gauche);
+            	   set_led(LED3, droite);
                }
-               else if(speed_correction < 0)
+               //Si le robot fait un virage a droite la led droite s'allume
+               else if(speed_correction < 0 && !droite)
                {
-            	   set_led(LED3, ON);
-            	   set_led(LED7, OFF);
+            	   gauche = OFF;
+            	   droite = ON;
+            	   set_led(LED3, droite);
+            	   set_led(LED7, gauche);
                }
               break; /* optional */
 
            case AVANCER  :
-        	   speed_correction = 0;
-        	   chprintf((BaseSequentialStream *)&SD3, "dist max %d\n", VL53L0X_get_dist_mm());
-        	   speed = pi_regulator(VL53L0X_get_dist_mm(), GOAL_DISTANCE);
+        	   speed_correction = 0;	//on ne veut plus corriger l'angle
+        	   dist = VL53L0X_get_dist_mm();
 
-        	   if(led != ON)
+        	   //Tant que le robot voit une cible a moins que 90 cm, on applique le regulateur pi
+        	   //et la led avant s'allume
+        	   if(dist < DIST_MAX)
         	   {
-        		   led = ON;
-        		   clear_leds();
-        		   set_led(LED1, ON);
+        		   speed = pi_regulator(dist, GOAL_DISTANCE);
+            	   if(avant != ON || arriere == ON)
+            	   {
+            		   avant = ON;
+            		   arriere = OFF;
+            		   clear_leds();
+            		   set_led(LED1, avant);
+            	   }
+        	   }
+        	   //Si le robot ne voit pas de cible parce qu'il l'a loupe, ou csi la cible a bouge
+        	   // il s'arrete et allume les leds avant et arriere
+        	   else
+        	   {
+        		   speed = 0;
+        		   avant = ON;
+        		   arriere = ON;
+        		   set_led(LED1, avant);
+        		   set_led(LED5, arriere);
         	   }
 
-        	   if(speed == 0)
+        	   //Si le robot ne bouge plus parce qu'il a atteint le but, on change d'etat
+        	   if(speed == 0 && arriere != ON)
         	   {
         		   state++;
         	   }
 
               break; /* optional */
+
            case BUT		:
+        	   //Le robot a atteint sa cible, il ne bouge plus
         	   speed = 0;
         	   speed_correction = 0;
-        	   if(led == ON)
+
+        	   //On allume la body led pendant la pause du robot
+        	   if(avant == ON)
         	   {
-        		   led = OFF;
-        		   set_led(LED1, OFF);
+        		   avant = OFF;
+        		   set_led(LED1, avant);
         		   set_body_led(ON);
         	   }
         	   chThdSleepMilliseconds(5000);
     		   set_body_led(OFF);
 
+    		   //Si on a pas encore atteint le nombre d'etapes predefinies on retourne
+    		   //a l'etat rotation
         	   if(etapes < ETAPES)
         	   {
         		   state = 0;
         		   etapes++;
         	   }
+        	   //Si on a atteint le nombre d'etapes predefinies on passe a l'etat fini
         	   else
         	   {
         		   state++;
         	   }
 
         	   break;
+
            case FIN		:
+        	   //Le robot a fini son travail et ne bouge plus, cela est indique par l'absence de leds
         	   speed = 0;
         	   speed_correction = 0;
 
         	   break;
         }
-
-        /////////////////////////////////////////////
-
-//        speed_correction = 0;
-//        speed = 0;
+        //La vitesse du robot est calculee par le regulateur PI plus haut; la correction de l'angle
+        //est essentiellement un regulateur P
 		right_motor_set_speed(speed + ROTATION_COEFF * speed_correction);
 		left_motor_set_speed(speed - ROTATION_COEFF * speed_correction);
 

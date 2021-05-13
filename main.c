@@ -65,7 +65,7 @@ int main(void)
     while (TRUE) {
 
 
-    	//r�cup�ration de l'angle
+    	//recuperation de l'angle calcule
         wait_send_to_computer();
 
         angle = get_audio_max_float(1)*360/(2*M_PI)+90;
