@@ -65,10 +65,10 @@ int main(void)
     while (TRUE) {
 
 
-    	//récupération de l'angle
+    	//rï¿½cupï¿½ration de l'angle
         wait_send_to_computer();
 
-        angle = get_audio_max_float(15)*360/(2*M_PI)+90;
+        angle = get_audio_max_float(1)*360/(2*M_PI)+90;
         chprintf((BaseSequentialStream*)&SD3,"Angle %f", angle);
         chThdSleepMilliseconds(3000);
    }
