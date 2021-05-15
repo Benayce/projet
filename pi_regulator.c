@@ -1,5 +1,5 @@
-/*Pour cette partie nous avons réutilisé le code du TP4
- * lequel nous avons modifié pour notre projet
+/*Pour cette partie nous avons rï¿½utilisï¿½ le code du TP4
+ * lequel nous avons modifiï¿½ pour notre projet
  *
  */
 
@@ -12,7 +12,7 @@
 
 #include <main.h>
 #include <motors.h>
-#include <sensors\VL53L0X\VL53L0X.h>
+#include <sensors/VL53L0X/VL53L0X.h>
 #include <pi_regulator.h>
 #include <leds.h>
 
@@ -221,5 +221,5 @@ static THD_FUNCTION(PiRegulator, arg) {
 }
 
 void pi_regulator_start(void){
-	chThdCreateStatic(waPiRegulator, sizeof(waPiRegulator), NORMALPRIO, PiRegulator, NULL);
+	chThdCreateStatic(waPiRegulator, sizeof(waPiRegulator), NORMALPRIO + 1, PiRegulator, NULL);
 }
