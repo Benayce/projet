@@ -7,5 +7,6 @@
 
 //start the PI regulator thread
 void pi_regulator_start(void);
+uint8_t get_state(void);
 
 #endif /* PI_REGULATOR_H */

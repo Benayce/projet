@@ -2,6 +2,7 @@
 #include "hal.h"
 #include <main.h>
 #include <usbcfg.h>
+
 #include <chprintf.h>
 
 #include "arm_math.h"
@@ -10,6 +11,7 @@
 #include <audio_processing.h>
 #include <arm_math.h>
 #include <arm_const_structs.h>
+#include <pi_regulator.h>
 
 //semaphore
 static BSEMAPHORE_DECL(sendToComputer_sem, TRUE);
@@ -24,10 +26,10 @@ static float micRight_cmplx_input[2 * FFT_SIZE];
 static float micLeft_output[FFT_SIZE];
 static float micRight_output[FFT_SIZE];
 
-static float Angle;
+static float Angle = 0;
 static int  pos_l_max;
 
-#define MIN_VALUE_THRESHOLD	10000 
+#define MIN_VALUE_THRESHOLD	20000
 
 //Defini arbitrairement Frequence et longeur associé
 #define Fson1	1500		//Hz
@@ -41,7 +43,6 @@ static int  pos_l_max;
 #define d				0.03	 		// distance entre les 2 micros diviser par 2
 #define pas_freq 		15.6 		// 15,6 Hz de difference entre 2 indices des datas frequencielles
 #define BEFORE_SEND		4			//nbr de called back de la fonction avant d'update l'angle
-#define PROBLEMEANGLE	4*M_PI
 #define INITDEPH			10*M_PI
 
 // Fonction à pour but de retourner la frequence dominante d'un tab de frequence
@@ -79,111 +80,117 @@ void doFFT_optimized(uint16_t size, float* complex_buffer){
 
 void processAudioData(int16_t *data, uint16_t num_samples){
 //INITIALISATION des variable
+	if(get_state() == ROTATION)
+	{
+		 int pos_r_max;
+		 // initialiser à une valeur superieur > 2_PI
+		 float dif_phase_rad= INITDEPH;
+		 float phi;
 
-	 int pos_r_max;
-	 // initialiser à une valeur superieur > 2_PI
-	 float dif_phase_rad= INITDEPH;
-	 float phi;
+		/*
+		*
+		*	We get 160 samples per mic every 10ms
+		*	So we fill the samples buffers to reach
+		*	1024 samples, then we compute the FFTs.
+		*
+		*/
 
-	/*
-	*
-	*	We get 160 samples per mic every 10ms
-	*	So we fill the samples buffers to reach
-	*	1024 samples, then we compute the FFTs.
-	*
-	*/
+		static uint16_t nb_samples = 0;
+		static uint8_t mustSend = 0;
 
-	static uint16_t nb_samples = 0;
-	static uint8_t mustSend = 0;
+	//ETAPE 0 loop to fill the buffers
 
-//ETAPE 0 loop to fill the buffers
+		for(uint16_t i = 0 ; i < num_samples ; i+=4){
 
-	for(uint16_t i = 0 ; i < num_samples ; i+=4){
+			//construct an array of complex numbers. Put 0 to the imaginary part
 
-		//construct an array of complex numbers. Put 0 to the imaginary part
+			micRight_cmplx_input[nb_samples] = (float)data[i + MIC_RIGHT];
+			micLeft_cmplx_input[nb_samples] = (float)data[i + MIC_LEFT];
 
-		micRight_cmplx_input[nb_samples] = (float)data[i + MIC_RIGHT];
-		micLeft_cmplx_input[nb_samples] = (float)data[i + MIC_LEFT];
+			nb_samples++;
 
-		nb_samples++;
+			micRight_cmplx_input[nb_samples] = 0;
+			micLeft_cmplx_input[nb_samples] = 0;
 
-		micRight_cmplx_input[nb_samples] = 0;
-		micLeft_cmplx_input[nb_samples] = 0;
+			nb_samples++;
 
-		nb_samples++;
+			//stop when buffer is full
 
-		//stop when buffer is full
+			if(nb_samples >= (2 * FFT_SIZE)){
+				break;
+			}
+		}
 
 		if(nb_samples >= (2 * FFT_SIZE)){
-			break;
+
+
+	//ETAPE 1 CALCULER LES FFT
+
+			doFFT_optimized(FFT_SIZE, micRight_cmplx_input);
+			doFFT_optimized(FFT_SIZE, micLeft_cmplx_input);
+
+	//ETAPE 2 CALCULER LES Magnitudes et les frequences maximales (pos_X_max)
+
+			arm_cmplx_mag_f32(micRight_cmplx_input, micRight_output, FFT_SIZE);
+			pos_r_max =Max_tableau( micRight_output, FFT_SIZE);
+			arm_cmplx_mag_f32(micLeft_cmplx_input, micLeft_output, FFT_SIZE);
+			pos_l_max = Max_tableau (micLeft_output, FFT_SIZE);
+
+	// ETAPE 3 SI les 2 micros ont la meme frequence max (!=0) => calculer la difference de phase
+
+
+			if(mustSend > BEFORE_SEND){
+				if((pos_r_max == pos_l_max) && (pos_r_max > 10)){//magic number
+
+					dif_phase_rad = atan(micLeft_cmplx_input[pos_l_max*2+1] / micLeft_cmplx_input[pos_l_max*2])
+							-atan(micRight_cmplx_input[pos_r_max*2+1] / micRight_cmplx_input[pos_r_max*2]);
+					Angle = 0;
+				}
+				else {Angle = PROBLEMEANGLE;}//Problème detecté On arrrete le robot
+
+	// ETAPE 4 Fixer la variable L à partir de l'information de frequence
+
+				float L=L2; // Valeur d'initialisation à SON 2
+				int freq_position = (pos_l_max-2) *pas_freq ; // -2 pour que ça joue ?
+				int Fson= Fson2;
+				if ( (freq_position-pas_freq) < Fson1 && (freq_position+pas_freq) > Fson1 ){
+								L= L1;
+								Fson=Fson1;
+							}
+							else if ((freq_position-2*pas_freq) < Fson1 && (freq_position+pas_freq) > Fson1 ){
+								L= L2;
+								Fson=Fson2;
+							}
+							else if ((freq_position-2*pas_freq) < Fson1 && (freq_position+pas_freq) > Fson1){
+								L= L3;
+								Fson=Fson3;
+							}
+
+
+	// ETAPE 5 transformer le dephasage ang en ANGLE de sortie
+	// (RAPPEL on veut des angles d'entrée dans la range [-PI/2,PI/2] )
+
+	// Si les angles sont bien dans la range calculer la position angulaire de la cible (Angle)
+
+				if (dif_phase_rad > M_PI/2 || dif_phase_rad < -M_PI/2){}
+				else if (Angle == PROBLEMEANGLE){chBSemSignal(&sendToComputer_sem);}
+				else
+				{
+					phi = (dif_phase_rad * Vson / (Fson*2*M_PI)); // simplifier en créant une const Vson/2_MPI
+					Angle =  -acos(phi*sqrt(4*L*L + 4*d*d - phi*phi)/(4*L*d));
+		//			chprintf((BaseSequentialStream*)&SD3,"Audio %f", Angle);
+					//envoi le signal que l'angle est pret
+					chBSemSignal(&sendToComputer_sem);
+					mustSend = 0;
+
+				}
+			}
+			nb_samples = 0;
+			mustSend++;
+
 		}
 	}
-
-	if(nb_samples >= (2 * FFT_SIZE)){
-
-
-//ETAPE 1 CALCULER LES FFT
-
-		doFFT_optimized(FFT_SIZE, micRight_cmplx_input);
-		doFFT_optimized(FFT_SIZE, micLeft_cmplx_input);
-
-//ETAPE 2 CALCULER LES Magnitudes et les frequences maximales (pos_X_max)
-
-		arm_cmplx_mag_f32(micRight_cmplx_input, micRight_output, FFT_SIZE);
-		pos_r_max =Max_tableau( micRight_output, FFT_SIZE);
-		arm_cmplx_mag_f32(micLeft_cmplx_input, micLeft_output, FFT_SIZE);
-		pos_l_max = Max_tableau (micLeft_output, FFT_SIZE);
-
-// ETAPE 3 SI les 2 micros ont la meme frequence max (!=0) => calculer la difference de phase
-
-
-		if(mustSend > BEFORE_SEND){
-			if((pos_r_max == pos_l_max) && (pos_r_max != 0)){
-
-				dif_phase_rad = atan(micLeft_cmplx_input[pos_l_max*2+1] / micLeft_cmplx_input[pos_l_max*2])
-						-atan(micRight_cmplx_input[pos_r_max*2+1] / micRight_cmplx_input[pos_r_max*2]);
-			}
-			else {Angle = PROBLEMEANGLE;}//Problème detecté On arrrete le robot
-
-// ETAPE 4 Fixer la variable L à partir de l'information de frequence
-
-			float L=L2; // Valeur d'initialisation à SON 2
-			int freq_position = (pos_l_max-2) *pas_freq ; // -2 pour que ça joue ?
-			int Fson= Fson2;
-			if ( (freq_position-pas_freq) < Fson1 && (freq_position+pas_freq) > Fson1 ){
-							L= L1;
-							Fson=Fson1;
-						}
-						else if ((freq_position-2*pas_freq) < Fson1 && (freq_position+pas_freq) > Fson1 ){
-							L= L2;
-							Fson=Fson2;
-						}
-						else if ((freq_position-2*pas_freq) < Fson1 && (freq_position+pas_freq) > Fson1){
-							L= L3;
-							Fson=Fson3;
-						}
-
-
-// ETAPE 5 transformer le dephasage ang en ANGLE de sortie
-// (RAPPEL on veut des angles d'entrée dans la range [-PI/2,PI/2] )
-
-// Si les angles sont bien dans la range calculer la position angulaire de la cible (Angle)
-
-			if (dif_phase_rad > M_PI/2 || dif_phase_rad < -M_PI/2){}
-			else{
-				phi = (dif_phase_rad * Vson / (Fson*2*M_PI)); // simplifier en créant une const Vson/2_MPI
-				Angle =  -acos(phi*sqrt(4*L*L + 4*d*d - phi*phi)/(4*L*d));
-
-				//envoi le signal que l'angle est pret
-				chBSemSignal(&sendToComputer_sem);
-				mustSend = 0;
-
-			}
-		}
-		nb_samples = 0;
-		mustSend++;
-
-	}
+	else{}
 }
 
 
@@ -192,14 +199,14 @@ void wait_send_to_computer(void){
 }
 
 float get_audio_float(BUFFER_NAME_t name){
-if (name == ANGLE){
-			return Angle;
-}
-else if (name == FREQ){
-return (pos_l_max)*pas_freq;
-		}
-else{
-	return 0;
-}
+	if (name == ANGLE){
+				return Angle;
+	}
+	else if (name == FREQ){
+	return (pos_l_max)*pas_freq;
+			}
+	else{
+		return 0;
+	}
 }
 

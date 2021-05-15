@@ -16,7 +16,12 @@
 #include <pi_regulator.h>
 #include <leds.h>
 
+static    uint8_t state = 0;
 
+uint8_t get_state()
+{
+	return state;
+}
 
 
 //simple PI regulator implementation
@@ -68,7 +73,7 @@ static THD_FUNCTION(PiRegulator, arg) {
     uint8_t arriere = OFF;
     int dist = 0;
 
-    uint8_t state = 0;
+
 
     while(1){
         time = chVTGetSystemTime();
@@ -76,20 +81,31 @@ static THD_FUNCTION(PiRegulator, arg) {
         //Cela nous donne du temps pour preparer le robot
         if(!check_angle)
         {
-        	set_body_led(1);
+        	set_body_led(ON);
         	chThdSleepMilliseconds(5000);
         	//wait_send_to_computer();
         	check_angle = TRUE;
-        	set_body_led(0);
+        	set_body_led(OFF);
         }
-        angle = get_angle();
 
+
+
+        //chprintf((BaseSequentialStream *)&SD3, "angle envoye : %f ; angle but : %f \n", angle, PROBLEMEANGLE*RAD2DEG+DECALAGE90DEGRE);
         switch(state) {
 
            case ROTATION  :
         	   speed = 0;
-        	   //Tant que l'angle calcule n'est pas satisfaisant, on continue de la corriger
-               if(abs(angle) >= ANGLE_LIMITE)
+               wait_send_to_computer();
+               angle = get_audio_float(ANGLE)*RAD2DEG+DECALAGE90DEGRE;
+        	   //Si l'angle nous indique que pas de son est detecte, on passe au state but
+        	   //qui lui va renvoyer ici avec un nouvel angle. Cela compte comme un but intermediaire
+        	   if(angle == PAS2SON)
+        	   {
+        		   state = BUT;
+        		   speed_correction = 0;
+        	   }
+        	   //Tant que l'angle calcule n'est pas satisfaisant, on continue de le corriger
+        	   else if(abs(angle) >= ANGLE_LIMITE)
                {
                	speed_correction = angle;
                }
@@ -102,6 +118,7 @@ static THD_FUNCTION(PiRegulator, arg) {
                //Si le robot fait un virage a gauche, la led gauche s'allume
                if(speed_correction > 0 && !gauche)
                {
+            	   clear_leds();
             	   gauche = ON;
             	   droite = OFF;
             	   set_led(LED7, gauche);
@@ -110,6 +127,7 @@ static THD_FUNCTION(PiRegulator, arg) {
                //Si le robot fait un virage a droite la led droite s'allume
                else if(speed_correction < 0 && !droite)
                {
+            	   clear_leds();
             	   gauche = OFF;
             	   droite = ON;
             	   set_led(LED3, droite);
@@ -141,6 +159,7 @@ static THD_FUNCTION(PiRegulator, arg) {
         		   speed = 0;
         		   avant = ON;
         		   arriere = ON;
+        		   clear_leds();
         		   set_led(LED1, avant);
         		   set_led(LED5, arriere);
         	   }
@@ -161,8 +180,7 @@ static THD_FUNCTION(PiRegulator, arg) {
         	   //On allume la body led pendant la pause du robot
         	   if(avant == ON)
         	   {
-        		   avant = OFF;
-        		   set_led(LED1, avant);
+        		   clear_leds();
         		   set_body_led(ON);
         	   }
         	   chThdSleepMilliseconds(5000);
@@ -172,7 +190,7 @@ static THD_FUNCTION(PiRegulator, arg) {
     		   //a l'etat rotation
         	   if(etapes < ETAPES)
         	   {
-        		   state = 0;
+        		   state = ROTATION;
         		   etapes++;
         	   }
         	   //Si on a atteint le nombre d'etapes predefinies on passe a l'etat fini
@@ -192,6 +210,7 @@ static THD_FUNCTION(PiRegulator, arg) {
         }
         //La vitesse du robot est calculee par le regulateur PI plus haut; la correction de l'angle
         //est essentiellement un regulateur P
+        chprintf((BaseSequentialStream*)&SD3,"State %d", state);
 		right_motor_set_speed(speed + ROTATION_COEFF * speed_correction);
 		left_motor_set_speed(speed - ROTATION_COEFF * speed_correction);
 

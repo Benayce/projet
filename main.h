@@ -9,7 +9,7 @@ extern "C" {
 #include "msgbus/messagebus.h"
 #include "parameter/parameter.h"
 
-float get_angle(void);
+//float get_angle(void);
 
 //constants for the differents parts of the project
 //#define ROTATION_THRESHOLD		10
@@ -20,7 +20,7 @@ float get_angle(void);
 //#define MAX_DISTANCE 			25.0f
 #define ERROR_THRESHOLD			5.0f	//[mm]
 #define KP						10.0f
-#define KI 						1.1f	//must not be zero
+#define KI 						0.5f	//must not be zero
 #define MAX_SUM_ERROR 			(MOTOR_SPEED_LIMIT/KI)
 #define ANGLE_LIMITE			2
 #define ROTATION	0
@@ -31,6 +31,10 @@ float get_angle(void);
 #define ON			1
 #define OFF			0
 #define DIST_MAX	900
+#define DECALAGE90DEGRE 90
+#define RAD2DEG 			360/(2*M_PI)
+#define PROBLEMEANGLE	4*M_PI
+#define PAS2SON			810 //PROBLEMEANGLE*RAD2DEG+DECALGE90DEGRE
 
 /** Robot wide IPC bus. */
 extern messagebus_t bus;
