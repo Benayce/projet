@@ -10,7 +10,7 @@ FREQ
 
 } BUFFER_NAME_t;
 
-float Max_tableau(float*tab1, uint16_t size);
+float Max_tableau(float*tab1);
 
 void processAudioData(int16_t *data, uint16_t num_samples);
 

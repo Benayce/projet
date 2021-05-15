@@ -29,32 +29,31 @@ static float micRight_output[FFT_SIZE];
 static float Angle = 0;
 static int  pos_l_max;
 
-static int counter = 0 ; // A ENLEVER
 
 #define MIN_VALUE_THRESHOLD	10000
 
-//Defini arbitrairement Frequence et longeur associé
-#define Fson1	1500		//Hz
-#define L1		0.1		//mètre
-#define Fson2	2000
-#define L2		0.2
-#define Fson3	3000
-#define L3		0.3
+//Defini tel que la Frequence et longeur associé soit fonctionnel
+#define Fson1				1500		//Hz
+#define L1					0.1		//mètre
+#define Fson2				2000
+#define L2					0.2
+#define Fson3				3000
+#define L3					0.3
 
-#define Vson				340 			// vitesse du son en m/s
-#define d				0.03	 		// distance entre les 2 micros diviser par 2
-#define pas_freq 		15.6 		// 15,6 Hz de difference entre 2 indices des datas frequencielles
-#define BEFORE_SEND		4			//nbr de called back de la fonction avant d'update l'angle
-#define INITDEPH			10*M_PI
-#define ECART_FREQ 		5 *pas_freq
+#define Vson					340 			// vitesse du son en m/s
+#define d					0.03	 		// distance entre les 2 micros diviser par 2
+#define pas_freq 			15.6 		// 15,6 Hz de difference entre 2 indices des datas frequencielles
+#define BEFORE_SEND			4			//nbr de called back de la fonction avant d'update l'angle
+#define INITDEPH				10*M_PI
+#define ECART_FREQ 			5 *pas_freq
 #define ECART_MICRO_FREQ		5
-#define FREQ_MIN			30
-#define FREQ_MAX			300
+#define FREQ_MIN				30
+#define FREQ_MAX				300
 
 // Fonction à pour but de retourner la frequence dominante d'un tab de frequence
 // si l'amplitude du signal à cette frequence est assez grande renvoie la position sinon renvoie 0
 
-float Max_tableau(float*tab1, uint16_t size){
+float Max_tableau(float*tab1){
 	float max=0;
 	int pos_max =0;
 	for (int i=FREQ_MIN;i<FREQ_MAX;i++){
@@ -138,31 +137,30 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 	//ETAPE 2 CALCULER LES Magnitudes et les frequences maximales (pos_X_max)
 
 			arm_cmplx_mag_f32(micRight_cmplx_input, micRight_output, FFT_SIZE);
-			pos_r_max =Max_tableau( micRight_output, FFT_SIZE);
+			pos_r_max =Max_tableau( micRight_output);
 			arm_cmplx_mag_f32(micLeft_cmplx_input, micLeft_output, FFT_SIZE);
-			pos_l_max = Max_tableau (micLeft_output, FFT_SIZE);
+			pos_l_max = Max_tableau (micLeft_output);
 
-	// ETAPE 3 SI les 2 micros ont la meme frequence max (!=0) => calculer la difference de phase
+	// ETAPE 3 SI les 2 micros ont une frequence max assez proche < ECART_MICRO_FREQ  => calculer la difference de phase
 
 
 			if(mustSend > BEFORE_SEND){
-				counter++;
-				//chprintf((BaseSequentialStream*)&SD3,"Counter %d \n",counter);
-				//chprintf((BaseSequentialStream*)&SD3,"l_max %d \n",pos_r_max );
-				//chprintf((BaseSequentialStream*)&SD3,"r_max %d \n",pos_r_max );
 
 				if((abs(pos_r_max - pos_l_max) < ECART_MICRO_FREQ)  && (pos_r_max > 0)){
 
 					dif_phase_rad = atan(micLeft_cmplx_input[pos_l_max*2+1] / micLeft_cmplx_input[pos_l_max*2])
 							-atan(micRight_cmplx_input[pos_r_max*2+1] / micRight_cmplx_input[pos_r_max*2]);
+
 					Angle = 0;
 
 	// ETAPE 4 Fixer la variable L à partir de l'information de frequence
 
-					float L=L2; // Valeur d'initialisation à SON 2
-					int freq_position = (pos_l_max-2) *pas_freq ; // -2 pour que ça joue ?
+					int freq_position = (pos_l_max) *pas_freq ;
+
+					// Valeur d'initialisation à SON 2
+					float L=L2;
 					int Fson= Fson2;
-					//chprintf((BaseSequentialStream*)&SD3,"FREQ %d \n",freq_position);
+
 					if ( (freq_position-ECART_FREQ) < Fson1 && (freq_position+ECART_FREQ) > Fson1 ){
 									L= L1;
 									Fson=Fson1;
@@ -176,7 +174,6 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 									Fson=Fson3;
 								}
 					else{Angle = PROBLEMEFREQ;
-					//chprintf((BaseSequentialStream*)&SD3,"PB FREQ \n");
 					}
 
 
@@ -185,18 +182,13 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 
 		// Si les angles sont bien dans la range calculer la position angulaire de la cible (Angle)
 
-					if (dif_phase_rad > M_PI/2 || dif_phase_rad < -M_PI/2){
-						//Angle = PROBLEMEANGLE;
-						//chprintf((BaseSequentialStream*)&SD3,"Probleme angle \n");
-						//chBSemSignal(&sendToComputer_sem);
-						}
+					if (dif_phase_rad > M_PI/2 || dif_phase_rad < -M_PI/2){}
 					else if (Angle == PROBLEMEFREQ){
 						chBSemSignal(&sendToComputer_sem);
-
 					}
 					else
 					{
-						phi = (dif_phase_rad * Vson / (Fson*2*M_PI)); // simplifier en créant une const Vson/2_MPI
+						phi = (dif_phase_rad * Vson / (Fson*2*M_PI));
 						Angle =  -acos(phi*sqrt(4*L*L + 4*d*d - phi*phi)/(4*L*d));
 
 						//envoi le signal que l'angle est pret
@@ -205,11 +197,12 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 
 					}
 				}
+				//Si un problème de son est detecté On veut rentrer dans PAS2SON du Pi_regulator
 				else {
 					Angle = PROBLEME;
 					chBSemSignal(&sendToComputer_sem);
-					//chprintf((BaseSequentialStream*)&SD3,"Probleme  \n");
-				}//Problème detecté On arrrete le robot
+
+				}
 			}
 			nb_samples = 0;
 			mustSend++;
