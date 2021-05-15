@@ -17,15 +17,6 @@
 #include <pi_regulator.h>
 
 
-/*
-static float angle = 45;
-
-float get_angle(void)
-{
-	return angle;
-}
-*/
-
 static void serial_start(void)
 {
 	static SerialConfig ser_cfg = {
@@ -57,7 +48,9 @@ int main(void)
 	//inits the motors
 	motors_init();
 
+	//starts the pi regulator thread
 	pi_regulator_start();
+
 	 //starts the microphones processing thread.
     //it calls the callback given in parameter when samples are ready
     mic_start(&processAudioData);
@@ -65,13 +58,6 @@ int main(void)
 
     /* Infinite loop. */
     while (TRUE) {
-
-
-    	//r�cup�ration de l'angle
-//        wait_send_to_computer();
-
-//        angle = get_audio_float(ANGLE)*RAD2DEG+DECALAGE90DEGRE;
-//        chprintf((BaseSequentialStream*)&SD3,"Angle %f", angle);
         chThdSleepMilliseconds(3000);
    }
 }
@@ -83,6 +69,3 @@ void __stack_chk_fail(void)
 {
     chSysHalt("Stack smashing detected");
 }
-
-
-

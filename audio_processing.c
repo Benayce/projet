@@ -147,9 +147,9 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 
 			if(mustSend > BEFORE_SEND){
 				counter++;
-				chprintf((BaseSequentialStream*)&SD3,"Counter %d \n",counter);
-				chprintf((BaseSequentialStream*)&SD3,"l_max %d \n",pos_r_max );
-				chprintf((BaseSequentialStream*)&SD3,"r_max %d \n",pos_r_max );
+				//chprintf((BaseSequentialStream*)&SD3,"Counter %d \n",counter);
+				//chprintf((BaseSequentialStream*)&SD3,"l_max %d \n",pos_r_max );
+				//chprintf((BaseSequentialStream*)&SD3,"r_max %d \n",pos_r_max );
 
 				if((abs(pos_r_max - pos_l_max) < ECART_MICRO_FREQ)  && (pos_r_max > 0)){
 
@@ -162,7 +162,7 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 					float L=L2; // Valeur d'initialisation à SON 2
 					int freq_position = (pos_l_max-2) *pas_freq ; // -2 pour que ça joue ?
 					int Fson= Fson2;
-					chprintf((BaseSequentialStream*)&SD3,"FREQ %d \n",freq_position);
+					//chprintf((BaseSequentialStream*)&SD3,"FREQ %d \n",freq_position);
 					if ( (freq_position-ECART_FREQ) < Fson1 && (freq_position+ECART_FREQ) > Fson1 ){
 									L= L1;
 									Fson=Fson1;
@@ -176,7 +176,8 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 									Fson=Fson3;
 								}
 					else{Angle = PROBLEMEFREQ;
-					chprintf((BaseSequentialStream*)&SD3,"PB FREQ \n");}
+					//chprintf((BaseSequentialStream*)&SD3,"PB FREQ \n");
+					}
 
 
 		// ETAPE 5 transformer le dephasage ang en ANGLE de sortie
@@ -189,7 +190,8 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 						//chprintf((BaseSequentialStream*)&SD3,"Probleme angle \n");
 						//chBSemSignal(&sendToComputer_sem);
 						}
-					else if (Angle == PROBLEMEFREQ){chBSemSignal(&sendToComputer_sem);
+					else if (Angle == PROBLEMEFREQ){
+						chBSemSignal(&sendToComputer_sem);
 
 					}
 					else
@@ -206,7 +208,7 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 				else {
 					Angle = PROBLEME;
 					chBSemSignal(&sendToComputer_sem);
-					chprintf((BaseSequentialStream*)&SD3,"Probleme  \n");
+					//chprintf((BaseSequentialStream*)&SD3,"Probleme  \n");
 				}//Problème detecté On arrrete le robot
 			}
 			nb_samples = 0;

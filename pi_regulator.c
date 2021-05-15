@@ -1,5 +1,5 @@
-/*Pour cette partie nous avons r�utilis� le code du TP4
- * lequel nous avons modifi� pour notre projet
+/*Pour cette partie nous avons reutilise le code du TP4
+ * lequel nous avons modifie pour notre projet
  *
  */
 
@@ -16,7 +16,7 @@
 #include <pi_regulator.h>
 #include <leds.h>
 
-static    uint8_t state = 0;
+static uint8_t state = 0;
 
 uint8_t get_state()
 {
@@ -83,26 +83,35 @@ static THD_FUNCTION(PiRegulator, arg) {
         {
         	set_body_led(ON);
         	chThdSleepMilliseconds(5000);
-        	//wait_send_to_computer();
         	check_angle = TRUE;
         	set_body_led(OFF);
         }
 
 
-
-        //chprintf((BaseSequentialStream *)&SD3, "angle envoye : %f ; angle but : %f \n", angle, PROBLEMEANGLE*RAD2DEG+DECALAGE90DEGRE);
         switch(state) {
 
            case ROTATION  :
         	   speed = 0;
                wait_send_to_computer();
                angle = get_audio_float(ANGLE)*RAD2DEG+DECALAGE90DEGRE;
-        	   //Si l'angle nous indique que pas de son est detecte, on passe au state but
-        	   //qui lui va renvoyer ici avec un nouvel angle. Cela compte comme un but intermediaire
+
+        	   //Si l'angle nous indique que pas de son est detecte, on ne bouge pas et
+               //on passe au state but qui lui va renvoyer ici et l'angle sera verifie a nouveau.
+               //Cela compte comme un but intermediaire
         	   if(angle == PAS2SON)
         	   {
+            	   gauche = OFF;
+            	   droite = OFF;
+            	   avant = OFF;
+            	   arriere = OFF;
+            	   set_led(LED7, gauche);
+            	   set_led(LED3, droite);
+            	   set_led(LED1, avant);
+            	   set_led(LED5, arriere);
+
         		   state = BUT;
         		   speed_correction = 0;
+        		   speed = 0;
         	   }
         	   //Tant que l'angle calcule n'est pas satisfaisant, on continue de le corriger
         	   else if(abs(angle) >= ANGLE_LIMITE)
@@ -112,32 +121,48 @@ static THD_FUNCTION(PiRegulator, arg) {
                //Si l'angle calcule est satisfaisant, on ne le corrige plus et on va au prochain etat
                else
                {
-               	speed_correction = 0;
-               	state++;
+            	   gauche = OFF;
+            	   droite = OFF;
+            	   avant = OFF;
+            	   arriere = OFF;
+            	   set_led(LED7, gauche);
+            	   set_led(LED3, droite);
+            	   set_led(LED1, avant);
+            	   set_led(LED5, arriere);
+            	   speed_correction = 0;
+            	   state++;
                }
                //Si le robot fait un virage a gauche, la led gauche s'allume
                if(speed_correction > 0 && !gauche)
                {
-            	   clear_leds();
             	   gauche = ON;
             	   droite = OFF;
+            	   avant = OFF;
+            	   arriere = OFF;
             	   set_led(LED7, gauche);
             	   set_led(LED3, droite);
+            	   set_led(LED1, avant);
+            	   set_led(LED5, arriere);
                }
                //Si le robot fait un virage a droite la led droite s'allume
                else if(speed_correction < 0 && !droite)
                {
-            	   clear_leds();
             	   gauche = OFF;
             	   droite = ON;
-            	   set_led(LED3, droite);
+            	   avant = OFF;
+            	   arriere = OFF;
             	   set_led(LED7, gauche);
+            	   set_led(LED3, droite);
+            	   set_led(LED1, avant);
+            	   set_led(LED5, arriere);
                }
               break; /* optional */
 
            case AVANCER  :
         	   speed_correction = 0;	//on ne veut plus corriger l'angle
         	   dist = VL53L0X_get_dist_mm();
+
+               chprintf((BaseSequentialStream*)&SD3,"State %d", dist);
 
         	   //Tant que le robot voit une cible a moins que 90 cm, on applique le regulateur pi
         	   //et la led avant s'allume
@@ -146,10 +171,14 @@ static THD_FUNCTION(PiRegulator, arg) {
         		   speed = pi_regulator(dist, GOAL_DISTANCE);
             	   if(avant != ON || arriere == ON)
             	   {
-            		   avant = ON;
-            		   arriere = OFF;
-            		   clear_leds();
-            		   set_led(LED1, avant);
+                	   gauche = OFF;
+                	   droite = OFF;
+                	   avant = ON;
+                	   arriere = OFF;
+                	   set_led(LED7, gauche);
+                	   set_led(LED3, droite);
+                	   set_led(LED1, avant);
+                	   set_led(LED5, arriere);
             	   }
         	   }
         	   //Si le robot ne voit pas de cible parce qu'il l'a loupe, ou csi la cible a bouge
@@ -157,19 +186,29 @@ static THD_FUNCTION(PiRegulator, arg) {
         	   else
         	   {
         		   speed = 0;
-        		   avant = ON;
-        		   arriere = ON;
-        		   clear_leds();
-        		   set_led(LED1, avant);
-        		   set_led(LED5, arriere);
+            	   gauche = OFF;
+            	   droite = OFF;
+            	   avant = ON;
+            	   arriere = ON;
+            	   set_led(LED7, gauche);
+            	   set_led(LED3, droite);
+            	   set_led(LED1, avant);
+            	   set_led(LED5, arriere);
         	   }
 
         	   //Si le robot ne bouge plus parce qu'il a atteint le but, on change d'etat
         	   if(speed == 0 && arriere != ON)
         	   {
+            	   gauche = OFF;
+            	   droite = OFF;
+            	   avant = OFF;
+            	   arriere = OFF;
+            	   set_led(LED7, gauche);
+            	   set_led(LED3, droite);
+            	   set_led(LED1, avant);
+            	   set_led(LED5, arriere);
         		   state++;
         	   }
-
               break; /* optional */
 
            case BUT		:
@@ -178,11 +217,17 @@ static THD_FUNCTION(PiRegulator, arg) {
         	   speed_correction = 0;
 
         	   //On allume la body led pendant la pause du robot
-        	   if(avant == ON)
-        	   {
-        		   clear_leds();
-        		   set_body_led(ON);
-        	   }
+
+			   gauche = OFF;
+			   droite = OFF;
+			   avant = OFF;
+			   arriere = OFF;
+			   set_led(LED7, gauche);
+			   set_led(LED3, droite);
+			   set_led(LED1, avant);
+			   set_led(LED5, arriere);
+
+			   set_body_led(ON);
         	   chThdSleepMilliseconds(5000);
     		   set_body_led(OFF);
 
@@ -198,7 +243,6 @@ static THD_FUNCTION(PiRegulator, arg) {
         	   {
         		   state++;
         	   }
-
         	   break;
 
            case FIN		:
@@ -210,7 +254,6 @@ static THD_FUNCTION(PiRegulator, arg) {
         }
         //La vitesse du robot est calculee par le regulateur PI plus haut; la correction de l'angle
         //est essentiellement un regulateur P
-        chprintf((BaseSequentialStream*)&SD3,"State %d", state);
 		right_motor_set_speed(speed + ROTATION_COEFF * speed_correction);
 		left_motor_set_speed(speed - ROTATION_COEFF * speed_correction);
 
